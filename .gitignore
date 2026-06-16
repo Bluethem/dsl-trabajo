@@ -1,0 +1,6 @@
+venv
+.venv
+.DS_Store
+dist
+node_modules
+node_module

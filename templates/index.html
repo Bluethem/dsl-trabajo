@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Editor de Plantillas Jinja2{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+  <span class="toolbar-label">Ejemplos:</span>
+  {% for key, ex in examples.items() %}
+  <button class="btn-example" data-key="{{ key }}">{{ ex.name }}</button>
+  {% endfor %}
+  <button class="btn-save" id="btn-save">💾 Guardar</button>
+  <button class="btn-pdf" id="btn-pdf">📄 Exportar PDF</button>
+  <div class="dropdown" id="templates-dropdown">
+    <button class="btn-dropdown" id="btn-templates">📂 Mis Plantillas <span class="dropdown-arrow">▾</span></button>
+    <div class="dropdown-menu" id="templates-menu"></div>
+  </div>
+  <button class="btn-clear" id="btn-clear">Limpiar</button>
+  <span id="status-msg" class="status-msg"></span>
+</div>
+
+<div class="editor-layout">
+  <!-- Panel izquierdo: editores -->
+  <div class="panel panel-left">
+    <div class="panel-section">
+      <div class="panel-header">
+        <span class="panel-title">Plantilla Jinja2</span>
+        <span class="lang-badge">DSL</span>
+      </div>
+      <textarea id="template-editor" class="cm-host" spellcheck="false" placeholder="Escribe tu plantilla Jinja2 aquí...
+Ejemplo:
+&lt;h1&gt;{{ titulo }}&lt;/h1&gt;
+{% for item in lista %}
+  &lt;p&gt;{{ item.nombre }}&lt;/p&gt;
+{% endfor %}"></textarea>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-header">
+        <span class="panel-title">Datos (JSON)</span>
+        <span class="lang-badge json-badge">JSON</span>
+      </div>
+      <textarea id="data-editor" class="cm-host" spellcheck="false" placeholder='{
+  "titulo": "Mi Reporte",
+  "lista": [
+    { "nombre": "Item 1" }
+  ]
+}'></textarea>
+    </div>
+
+    <div class="filters-info">
+      <span class="filters-title">Filtros disponibles:</span>
+      <code>| currency</code>
+      <code>| upper_first</code>
+      <code>| badge</code>
+      <code>| upper</code>
+      <code>| lower</code>
+      <code>| length</code>
+      <code>| sum(attribute='campo')</code>
+    </div>
+  </div>
+
+  <!-- Panel derecho: preview -->
+  <div class="panel panel-right">
+    <div class="panel-header">
+      <span class="panel-title">Preview</span>
+      <span id="render-time" class="render-time"></span>
+    </div>
+    <div id="preview-frame" class="preview-frame">
+      <div class="preview-placeholder">
+        <p>👈 Escribe una plantilla y datos para ver el preview aquí.</p>
+        <p>El preview se actualiza automáticamente.</p>
+      </div>
+    </div>
+    <div id="error-box" class="error-box hidden"></div>
+  </div>
+</div>
+{% endblock %}
