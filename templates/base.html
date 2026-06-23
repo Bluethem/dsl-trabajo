@@ -16,12 +16,57 @@
     <div class="header-inner">
       <span class="logo">📋 DSL Reportes</span>
       <span class="subtitle">Motor de plantillas Jinja2 · Preview en tiempo real</span>
+      <div class="header-role">
+        <span class="role-label">Rol:</span>
+        <div class="role-switcher" id="role-switcher">
+          <button class="role-btn {% if role == 'viewer' %}role-active{% endif %}" data-role="viewer">viewer</button>
+          <button class="role-btn {% if role == 'admin' %}role-active role-admin{% endif %}" data-role="admin">admin</button>
+        </div>
+        <span class="role-user" id="role-user">{{ username }}</span>
+      </div>
     </div>
   </header>
   <main>
     {% block content %}{% endblock %}
   </main>
+
+  <!-- Modal: Programar Reporte -->
+  <div class="modal-overlay hidden" id="schedule-overlay">
+    <div class="modal" id="schedule-modal">
+      <div class="modal-header">
+        <span class="modal-title">📅 Programar Reportes</span>
+        <button class="modal-close" id="schedule-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="sched-form">
+          <label>Nombre del reporte programado</label>
+          <input type="text" id="sched-name" placeholder="Ej: Reporte semanal de ventas" />
+          <label>Plantilla guardada (opcional)</label>
+          <select id="sched-template">
+            <option value="">— Ninguna —</option>
+          </select>
+          <label>Frecuencia</label>
+          <select id="sched-freq">
+            <option value="daily">Diaria</option>
+            <option value="weekly">Semanal</option>
+            <option value="monthly">Mensual</option>
+          </select>
+          <button class="btn-modal-save" id="sched-save">Programar</button>
+        </div>
+        <hr class="modal-divider">
+        <div class="sched-list-wrap">
+          <span class="sched-list-title">Reportes programados</span>
+          <div id="sched-list" class="sched-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notification -->
+  <div class="toast hidden" id="toast"></div>
+
   <script src="{{ url_for('static', filename='vendor/html2pdf/html2pdf.bundle.min.js') }}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script src="{{ url_for('static', filename='vendor/codemirror/codemirror.min.js') }}"></script>
   <script src="{{ url_for('static', filename='vendor/codemirror/xml.min.js') }}"></script>
   <script src="{{ url_for('static', filename='vendor/codemirror/javascript.min.js') }}"></script>

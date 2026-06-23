@@ -8,12 +8,19 @@
   {% for key, ex in examples.items() %}
   <button class="btn-example" data-key="{{ key }}">{{ ex.name }}</button>
   {% endfor %}
+
+  <div class="toolbar-sep"></div>
+
   <button class="btn-save" id="btn-save">💾 Guardar</button>
-  <button class="btn-pdf" id="btn-pdf">📄 Exportar PDF</button>
+  <button class="btn-pdf" id="btn-pdf">📄 PDF</button>
+  <button class="btn-excel" id="btn-excel">📊 Excel</button>
+  <button class="btn-schedule" id="btn-schedule">📅 Programar</button>
+
   <div class="dropdown" id="templates-dropdown">
     <button class="btn-dropdown" id="btn-templates">📂 Mis Plantillas <span class="dropdown-arrow">▾</span></button>
     <div class="dropdown-menu" id="templates-menu"></div>
   </div>
+
   <button class="btn-clear" id="btn-clear">Limpiar</button>
   <span id="status-msg" class="status-msg"></span>
 </div>
@@ -24,7 +31,15 @@
     <div class="panel-section">
       <div class="panel-header">
         <span class="panel-title">Plantilla Jinja2</span>
-        <span class="lang-badge">DSL</span>
+        <div class="panel-header-right">
+          <span class="lang-badge">DSL</span>
+          <label class="visibility-label" title="Visibilidad al guardar">
+            <select id="visibility-select" class="visibility-select">
+              <option value="public">🌐 Pública</option>
+              <option value="private">🔒 Privada</option>
+            </select>
+          </label>
+        </div>
       </div>
       <textarea id="template-editor" class="cm-host" spellcheck="false" placeholder="Escribe tu plantilla Jinja2 aquí...
 Ejemplo:
@@ -48,14 +63,20 @@ Ejemplo:
     </div>
 
     <div class="filters-info">
-      <span class="filters-title">Filtros disponibles:</span>
+      <span class="filters-title">Filtros DSL:</span>
       <code>| currency</code>
       <code>| upper_first</code>
       <code>| badge</code>
+      <code>| percent</code>
+      <code>| tojson</code>
+      <code>| chart</code>
       <code>| upper</code>
       <code>| lower</code>
       <code>| length</code>
       <code>| sum(attribute='campo')</code>
+      <span class="filters-title" style="margin-left:8px">Vars sistema:</span>
+      <code>{{ _role }}</code>
+      <code>{{ _user }}</code>
     </div>
   </div>
 

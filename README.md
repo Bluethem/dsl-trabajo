@@ -117,30 +117,44 @@ HTML/CSS son lenguajes de marcado y estilos, respectivamente. Son declarativos y
 
 **Características implementadas:**
 - Editor de plantillas Jinja2 con preview en tiempo real (debounce 400 ms)
-- Sistema de filtros personalizados Jinja2 (`currency`, `upper_first`, `badge`)
-- Ejemplos precargados de reportes (ventas, empleados)
+- Syntax highlighting en el editor con CodeMirror (modo Django/Jinja2 + JSON)
+- Sistema de filtros personalizados Jinja2 (`currency`, `upper_first`, `badge`, `percent`, `tojson`, `chart`)
+- Ejemplos precargados de reportes (ventas, empleados, ventas con gráfico, permisos por rol)
 - Reporte de errores de sintaxis Jinja2 con número de línea
 - Interfaz dark mode con panel split editor/preview
+- Persistencia de plantillas con SQLite (guardar/cargar/versionar/eliminar)
+- Visibilidad por plantilla: `public` o `private` (solo admin)
+- Sistema de roles `admin` / `viewer` con variables `_role` y `_user` inyectadas en el contexto
+- Exportación a PDF con html2pdf.js
+- Exportación a Excel (.xlsx) con openpyxl
+- Gráficos embebidos en reportes con Chart.js (filtro `chart`)
+- Programación de reportes periódicos (diaria, semanal, mensual)
+- Historial de ejecuciones por programación
+- Polling automático cada 60 s para detectar reportes vencidos
 
-**Tecnologías:** Python, Flask, Jinja2, HTML/CSS/JS vanilla
+**Tecnologías:** Python, Flask, Jinja2, SQLite, openpyxl, HTML/CSS/JS vanilla, CodeMirror, Chart.js, html2pdf.js
 
 ---
 
 ## Estructura del Proyecto
 
 ```
-dsl-reportes/
-├── app.py                  # Backend Flask + lógica de renderizado Jinja2
-├── requirements.txt        # Dependencias Python
+dsl-trabajo/
+├── app.py                          # Backend Flask + lógica de renderizado Jinja2
+├── requirements.txt                # Dependencias Python
 ├── templates/
-│   ├── base.html           # Layout base Flask
-│   └── index.html          # Página principal con el editor
+│   ├── base.html                   # Layout base Flask
+│   └── index.html                  # Página principal con el editor
 ├── static/
 │   ├── css/
-│   │   └── style.css       # Estilos del editor (dark mode)
-│   └── js/
-│       └── editor.js       # Lógica de preview en tiempo real
-└── reports/                # Directorio para reportes guardados (futuro)
+│   │   └── style.css               # Estilos del editor (dark mode)
+│   ├── js/
+│   │   └── editor.js               # Lógica de preview, exportación y programación
+│   └── vendor/
+│       ├── codemirror/             # Editor con syntax highlighting
+│       └── html2pdf/               # Exportación a PDF
+└── reports/
+    └── templates.db                # Base de datos SQLite (se crea automáticamente)
 ```
 
 ---
@@ -149,10 +163,10 @@ dsl-reportes/
 
 ```bash
 # Clonar / descomprimir el proyecto
-cd dsl-reportes
+cd dsl-trabajo
 
 # Instalar dependencias
-pip install flask jinja2
+pip install -r requirements.txt
 
 # Ejecutar
 python app.py
@@ -160,6 +174,8 @@ python app.py
 # Abrir en el navegador
 # http://localhost:5000
 ```
+
+La base de datos SQLite se crea automáticamente en `reports/templates.db` al iniciar.
 
 ---
 
@@ -170,6 +186,9 @@ python app.py
 | `currency` | Formato monetario | `{{ 1500 \| currency }}` | `S/ 1,500.00` |
 | `upper_first` | Capitaliza primera letra | `{{ "laptop" \| upper_first }}` | `Laptop` |
 | `badge` | Clase CSS según umbral | `{{ 85 \| badge }}` | `badge-success` |
+| `percent` | Formato porcentaje | `{{ 23.5 \| percent }}` | `23.5%` |
+| `tojson` | Serializa a JSON seguro | `{{ obj \| tojson }}` | `{"key": "val"}` |
+| `chart` | Inserta gráfico Chart.js desde dict | `{{ cfg \| chart }}` | `<canvas ...>` |
 | `upper` | Todo mayúsculas (Jinja2) | `{{ "hola" \| upper }}` | `HOLA` |
 | `lower` | Todo minúsculas (Jinja2) | `{{ "HOLA" \| lower }}` | `hola` |
 | `length` | Longitud de lista (Jinja2) | `{{ lista \| length }}` | `3` |
@@ -228,9 +247,79 @@ Usuario escribe plantilla + JSON
         ▼
    app.py: json.loads(data) → user_env.from_string(template).render(**context)
         │
-        ├─ OK  → { "html": "<h1>...</h1>" }  → previewFrame.innerHTML
+        ├─ OK  → { "html": "<h1>...</h1>" }  → previewFrame.innerHTML → initCharts()
         └─ ERR → { "error": "línea X: ..." } → errorBox
 ```
+
+---
+
+## Base de Datos (SQLite)
+
+### Tabla `saved_templates`
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `id` | INTEGER PK | Identificador |
+| `name` | TEXT | Nombre de la plantilla |
+| `template` | TEXT | Código Jinja2 |
+| `data` | TEXT | Datos JSON por defecto |
+| `version` | INTEGER | Incrementa en cada actualización |
+| `visibility` | TEXT | `public` o `private` |
+| `created_at` | TIMESTAMP | Fecha de creación |
+| `updated_at` | TIMESTAMP | Última actualización |
+
+### Tabla `scheduled_reports`
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `id` | INTEGER PK | Identificador |
+| `name` | TEXT | Nombre del reporte |
+| `template_id` | INTEGER | Referencia a plantilla guardada |
+| `frequency` | TEXT | `daily`, `weekly` o `monthly` |
+| `active` | INTEGER | 1 = activo, 0 = pausado |
+| `last_run` | TIMESTAMP | Última ejecución |
+| `next_run` | TIMESTAMP | Próxima ejecución programada |
+
+### Tabla `report_runs`
+Historial de ejecuciones de cada programación (últimas 20 por schedule).
+
+---
+
+## API REST
+
+### Renderizado
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/preview` | Renderiza plantilla Jinja2 con datos JSON |
+| `GET` | `/examples/<key>` | Devuelve plantilla y datos de un ejemplo precargado |
+
+### Plantillas guardadas
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/templates` | Lista plantillas (filtra privadas según rol) |
+| `POST` | `/api/templates` | Guarda nueva plantilla |
+| `GET` | `/api/templates/<id>` | Carga una plantilla |
+| `PUT` | `/api/templates/<id>` | Actualiza plantilla (incrementa versión) |
+| `DELETE` | `/api/templates/<id>` | Elimina plantilla |
+
+### Programación de reportes
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/schedules` | Lista programaciones |
+| `POST` | `/api/schedules` | Crea programación |
+| `DELETE` | `/api/schedules/<id>` | Elimina programación |
+| `POST` | `/api/schedules/<id>/toggle` | Pausa o activa |
+| `POST` | `/api/schedules/<id>/run` | Ejecuta manualmente |
+| `GET` | `/api/schedules/<id>/runs` | Historial de ejecuciones |
+| `GET` | `/api/schedules/due` | Lista programaciones vencidas |
+
+### Exportación
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/export/excel` | Genera archivo `.xlsx` desde datos JSON |
+
+### Sesión / Roles
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/set-role` | Establece rol y usuario de la sesión (`admin`/`viewer`) |
 
 ---
 
@@ -250,7 +339,7 @@ El metamodelo de Jinja2 se compone de:
 
 - **Variables:** `{{ expresion }}` — interpolación de datos del contexto.
 - **Bloques de control:** `{% if %} {% for %} {% block %}` — lógica de presentación.
-- **Filtros:** `valor | filtro` — transformaciones del dominio (currency, badge, etc.).
+- **Filtros:** `valor | filtro` — transformaciones del dominio (currency, badge, chart, etc.).
 - **Macros:** `{% macro nombre(args) %}` — reutilización de fragmentos de plantilla.
 - **Herencia:** `{% extends %}` / `{% block %}` — composición jerárquica de layouts.
 
@@ -258,15 +347,6 @@ El metamodelo de Jinja2 se compone de:
 
 - **Textuales:** más expresivos, basados en gramática. → *Jinja2 es un DSL textual.*
 - **Visuales:** más fáciles de interpretar, basados en mapping gráfico.
-
----
-
-## Próximos Pasos
-
-- [ ] Persistencia de plantillas con SQLite (guardar/cargar/versionar)
-- [ ] Exportación a PDF con WeasyPrint
-- [ ] Syntax highlighting en el editor con CodeMirror
-- [ ] Programación de reportes periódicos
 
 ---
 
