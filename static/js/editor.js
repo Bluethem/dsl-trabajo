@@ -413,12 +413,20 @@ document.getElementById("btn-excel").addEventListener("click", async () => {
 document.querySelectorAll(".role-btn").forEach(btn => {
   btn.addEventListener("click", async () => {
     const role = btn.dataset.role;
+    let password = null;
+    if (role === "admin") {
+      password = prompt("🔐 Ingrese contrase\u00f1a de administrador:");
+      if (password !== "123456") {
+        showToast("⚠ Contrase\u00f1a incorrecta", "error");
+        return;
+      }
+    }
     const username = role === "admin" ? "Admin" : "Visitante";
     try {
       const res = await fetch("/set-role", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role, username }),
+        body: JSON.stringify({ role, username, password }),
       });
       if (res.ok) {
         // Update button styles
@@ -573,3 +581,59 @@ async function checkDueSchedules() {
 // Check on load and every 60s
 checkDueSchedules();
 setInterval(checkDueSchedules, 60_000);
+
+// ── Compartir por URL ───────────────────────────────────────────────────────
+
+function b64encode(str) {
+  try {
+    return btoa(unescape(encodeURIComponent(str)));
+  } catch {
+    return btoa(str);
+  }
+}
+
+function b64decode(str) {
+  try {
+    return decodeURIComponent(escape(atob(str)));
+  } catch {
+    return atob(str);
+  }
+}
+
+document.getElementById("btn-share").addEventListener("click", () => {
+  const template = templateEditor.getValue();
+  const data = dataEditor.getValue();
+  if (!template.trim()) {
+    showToast("⚠ Escribe una plantilla antes de compartir", "warning");
+    return;
+  }
+  const enc = b64encode(template);
+  const encData = data.trim() ? b64encode(data) : "";
+  const url = `${location.origin}${location.pathname}?t=${encodeURIComponent(enc)}${encData ? "&d=" + encodeURIComponent(encData) : ""}`;
+  navigator.clipboard.writeText(url).then(() => {
+    showToast("🔗 URL copiada — compártela y al abrirla se cargará todo automáticamente", "success");
+  }).catch(() => {
+    showToast("🔗 " + url, "warning");
+  });
+});
+
+// ── Cargar desde URL ────────────────────────────────────────────────────────
+
+(function loadFromURL() {
+  const params = new URLSearchParams(location.search);
+  const t = params.get("t");
+  const d = params.get("d");
+  if (t) {
+    try {
+      templateEditor.setValue(b64decode(t));
+      if (d) dataEditor.setValue(b64decode(d));
+      // Esperar a que CodeMirror procese el cambio y forzar preview
+      setTimeout(() => {
+        scheduleRender();
+        renderPreview();
+      }, 300);
+    } catch (e) {
+      showToast("⚠ Error al cargar plantilla desde URL", "error");
+    }
+  }
+})();

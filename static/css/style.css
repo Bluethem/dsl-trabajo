@@ -190,6 +190,19 @@ header {
 }
 .btn-schedule:hover { background: var(--warning); color: #0f1117; }
 
+.btn-share {
+  background: transparent;
+  color: var(--accent2);
+  border: 1px solid var(--accent2);
+  border-radius: 20px;
+  padding: 4px 14px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.btn-share:hover { background: var(--accent2); color: #0f1117; }
+
 .btn-dropdown {
   background: var(--bg3);
   color: var(--text);

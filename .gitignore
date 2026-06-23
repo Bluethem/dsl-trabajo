@@ -4,3 +4,4 @@ venv
 dist
 node_modules
 node_module
+__pycache__

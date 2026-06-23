@@ -5,7 +5,7 @@ import json
 import os
 import io
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 
@@ -613,7 +613,7 @@ EXAMPLE_TEMPLATES = {
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def next_run_from_frequency(frequency: str) -> str:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     if frequency == "daily":
         dt = now + timedelta(days=1)
     elif frequency == "weekly":
@@ -651,6 +651,8 @@ def set_role():
     username = body.get("username", "").strip() or ("Admin" if role == "admin" else "Visitante")
     if role not in ("admin", "viewer"):
         return jsonify({"error": "Rol inválido"}), 400
+    if role == "admin" and body.get("password") != "123456":
+        return jsonify({"error": "Contraseña incorrecta"}), 403
     session["role"] = role
     session["username"] = username
     return jsonify({"role": role, "username": username})
@@ -841,7 +843,7 @@ def update_template(tid):
            WHERE id = ?""",
         (name, body.get("template", existing["template"]),
          body.get("data", existing["data"]), visibility,
-         datetime.utcnow().isoformat(), tid),
+         datetime.now(timezone.utc).isoformat(), tid),
     )
     conn.commit()
     row = conn.execute(
@@ -938,7 +940,7 @@ def run_schedule(sid):
     next_run = next_run_from_frequency(s["frequency"])
     conn.execute(
         "UPDATE scheduled_reports SET last_run = ?, next_run = ? WHERE id = ?",
-        (datetime.utcnow().isoformat(), next_run, sid),
+        (datetime.now(timezone.utc).isoformat(), next_run, sid),
     )
     conn.execute(
         "INSERT INTO report_runs (schedule_id, schedule_name, status) VALUES (?, ?, ?)",
@@ -955,7 +957,7 @@ def run_schedule(sid):
 
 @app.route("/api/schedules/due", methods=["GET"])
 def due_schedules():
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
     conn = get_db()
     rows = conn.execute(
         "SELECT * FROM scheduled_reports WHERE active = 1 AND next_run <= ?", (now,)
@@ -975,4 +977,4 @@ def schedule_runs(sid):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(host="0.0.0.0", debug=True, port=5000)
